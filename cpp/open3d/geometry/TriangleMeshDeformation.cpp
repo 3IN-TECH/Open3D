@@ -93,6 +93,8 @@ std::shared_ptr<TriangleMesh> TriangleMesh::DeformAsRigidAsPossible(
             std::swap(Rs, Rs_old);
         }
 
+        bool updateRFail = false;
+
 #pragma omp parallel for schedule(static) \
         num_threads(utility::EstimateMaxThreads())
         for (int i = 0; i < int(vertices_.size()); ++i) {
@@ -124,11 +126,20 @@ std::shared_ptr<TriangleMesh> TriangleMesh::DeformAsRigidAsPossible(
             // http://graphics.stanford.edu/~smr/ICP/comparison/eggert_comparison_mva97.pdf
             Rs[i] = V * D.asDiagonal() * U.transpose();
             if (Rs[i].determinant() <= 0) {
-                utility::LogError(
+                updateRFail = true;
+
+                break;
+
+                /* utility::LogError(
                         "something went wrong with "
-                        "updating R");
+                        "updating R");*/
             }
         }
+
+        if (updateRFail) {
+            return nullptr;
+        }
+        
 
 #pragma omp parallel for schedule(static) \
         num_threads(utility::EstimateMaxThreads())
